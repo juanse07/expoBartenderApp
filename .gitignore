@@ -34,3 +34,18 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Environment variables
+.env
+.env.development
+.env.production
+.env.test
+
+# MongoDB
+/data
+*.dump
+
+# IDE
+.idea/
+.vscode/
+*.swp
