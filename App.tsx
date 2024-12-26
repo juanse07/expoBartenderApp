@@ -1,8 +1,10 @@
+import NetInfo from '@react-native-community/netinfo';
 import * as Font from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, RefreshControl, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ServiceQuotation } from './src/types';
+import { QuotationStorage } from './src/utils/storage';
 
 const theme = {
   primary: '#D4AF37',      // Classic gold
@@ -15,7 +17,7 @@ const theme = {
   border: '#333333',      // Dark border
 };
 
-const API_URL = 'http://192.168.4.76:8888'; // Replace with your IP address
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.4.76:8888';
 
 export default function App() {
   const [quotations, setQuotations] = useState<ServiceQuotation[]>([]);
@@ -23,7 +25,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
 
+  // Load fonts
   useEffect(() => {
     async function loadFonts() {
       try {
@@ -41,17 +45,52 @@ export default function App() {
     loadFonts();
   }, []);
 
+  // Network status monitoring
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOffline(!state.isConnected);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const fetchQuotations = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/quotations`);
+      const isConnected = await QuotationStorage.isConnected();
+      
+      if (!isConnected) {
+        setIsOffline(true);
+        const storedQuotations = await QuotationStorage.getQuotations();
+        if (storedQuotations.length > 0) {
+          setQuotations(storedQuotations);
+          setError(null);
+        } else {
+          setError('No cached data available');
+        }
+        return;
+      }
+
+      setIsOffline(false);
+      const response = await fetch(`${API_URL}/bar-service-quotations`);
+      
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
       const data = await response.json();
       setQuotations(data);
+      setError(null);
+      await QuotationStorage.saveQuotations(data);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
       setError(errorMessage);
+      
+      // Load cached data if available
+      const storedQuotations = await QuotationStorage.getQuotations();
+      if (storedQuotations.length > 0) {
+        setQuotations(storedQuotations);
+        setIsOffline(true);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -73,11 +112,16 @@ export default function App() {
     );
   }
 
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
       <View style={styles.header}>
         <Text style={styles.headerText}>Bartender App</Text>
+        {isOffline && <Text style={styles.offlineText}>Offline Mode - Using Cached Data</Text>}
         {error && <Text style={styles.errorText}>{error}</Text>}
       </View>
       
@@ -111,7 +155,7 @@ export default function App() {
               <View style={styles.cardContent}>
                 <View style={styles.infoRow}>
                   <Text style={styles.label}>Event Date</Text>
-                  <Text style={styles.value}>{new Date(quotation.eventDate).toLocaleDateString()}</Text>
+                  <Text style={styles.value}>{formatDate(quotation.eventDate)}</Text>
                 </View>
                 
                 <View style={styles.infoRow}>
@@ -129,6 +173,21 @@ export default function App() {
                   <Text style={styles.value}>{quotation.servicesRequested.join(', ')}</Text>
                 </View>
                 
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Email</Text>
+                  <Text style={styles.value}>{quotation.email}</Text>
+                </View>
+                
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Phone</Text>
+                  <Text style={styles.value}>{quotation.phone}</Text>
+                </View>
+                
+                <View style={styles.infoRow}>
+                  <Text style={styles.label}>Address</Text>
+                  <Text style={styles.value}>{quotation.address}</Text>
+                </View>
+                
                 {quotation.notes && (
                   <View style={styles.notesContainer}>
                     <Text style={styles.notesLabel}>Notes</Text>
@@ -139,7 +198,7 @@ export default function App() {
               
               <View style={styles.cardFooter}>
                 <Text style={styles.timestamp}>
-                  Created: {new Date(quotation.createdAt).toLocaleDateString()}
+                  Created: {formatDate(quotation.createdAt)}
                 </Text>
               </View>
             </View>
@@ -173,6 +232,13 @@ const styles = StyleSheet.create({
     color: theme.primary,
     textAlign: 'center',
     fontFamily: 'Lato-Bold',
+  },
+  offlineText: {
+    color: theme.secondary,
+    fontSize: 12,
+    fontFamily: 'Lato-Regular',
+    textAlign: 'center',
+    marginTop: 4,
   },
   scrollContainer: {
     padding: 16,

@@ -1,9 +1,12 @@
+
+///////save for later without using storage"
 import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { ServiceQuotation } from '../types';
 
 interface QuotationCardProps {
   quotation: ServiceQuotation;
+  onRefresh: () => Promise<void>;
 }
 
 export function formatDate(dateString: string) {
