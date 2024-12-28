@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "es2016",                  // ES2016 is fine, but consider ES2020 for more modern features.
+    "module": "commonjs",                // CommonJS is appropriate for Node.js.
+    "strict": true,                      // Enables strict type-checking options.
+    "esModuleInterop": true,             // Ensures compatibility with CommonJS modules.
+    "skipLibCheck": true,                // Skips type checking of declaration files for faster builds.
+    "forceConsistentCasingInFileNames": true, // Prevents issues due to casing mismatches.
+    "outDir": "./dist",                  // Compiles TypeScript files into a `dist` directory.
+    "rootDir": "./src",                  // Specifies the root directory for input TypeScript files.
+    "resolveJsonModule": true,           // Allows importing JSON files as modules.
+    "moduleResolution": "node",         // Uses Node.js module resolution logic.
+    "allowSyntheticDefaultImports": true, // Allows default imports even if the module doesn't have one.
+    "incremental": true                  // Speeds up builds by using incremental compilation.
+  },
+  "include": ["src"],                    // Specifies the directory to include for TypeScript compilation.
+  "exclude": ["node_modules", "dist"]    // Excludes unnecessary directories from compilation.
+}
+  
+ 
